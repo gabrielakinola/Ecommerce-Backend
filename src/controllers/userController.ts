@@ -20,7 +20,7 @@ const registerUser = asyncErrorHandler(
       });
       return;
     } else if (userExists && userExists.isVerified) {
-      throw new CustomEndpointError("User already exists", 404);
+      throw new CustomEndpointError("User already exists", 400);
     }
     const user = await User.create({ name, email, password });
     const userId = user._id.toString();
@@ -50,7 +50,7 @@ const registerAdmin = asyncErrorHandler(
       });
       return;
     } else if (userExists && userExists.isVerified) {
-      throw new CustomEndpointError("User already exists", 404);
+      throw new CustomEndpointError("User already exists", 400);
     }
     const user = await User.create({ name, email, password, isAdmin: true });
 
@@ -70,9 +70,11 @@ const registerAdmin = asyncErrorHandler(
 const verifyEmail = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { token } = req.params;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY) as JwtPayload;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY2
+    ) as JwtPayload;
     const user = await User.findById(decoded.userId).select("-password");
-    console.log(user);
     if (!user) {
       throw new CustomEndpointError("User not found", 404);
     } else if (user.isVerified) {
@@ -87,8 +89,24 @@ const verifyEmail = asyncErrorHandler(
   }
 );
 
-// const loginUser = asyncErrorHandler(
-//   async (req: Request, res: Response, next: NextFunction) => {}
-// );
+const loginUser = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
 
-export { registerUser, registerAdmin, verifyEmail };
+    if (user && (await user.matchPassword(password))) {
+      generateAuthToken(res, user._id);
+      res.status(200).json({ message: "Login succesful" });
+    } else {
+      throw new CustomEndpointError("Invalid email or password", 400);
+    }
+  }
+);
+
+const protectedRoute = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    res.status(200).json({ user: req.user });
+  }
+);
+
+export { registerUser, registerAdmin, verifyEmail, loginUser, protectedRoute };

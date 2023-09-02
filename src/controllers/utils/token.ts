@@ -9,7 +9,7 @@ const generateAuthToken = (res: Response, userId: string): void => {
 };
 
 const generateVerificationToken = (userId: string): string => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET_KEY, {
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET_KEY2, {
     expiresIn: "30m",
   });
   return token;

@@ -6,7 +6,8 @@ interface IUser extends Document {
   email: string;
   password: string;
   isAdmin: boolean;
-  matchPassword(password: string): boolean;
+  isVerified: boolean;
+  matchPassword(password: string): Promise<boolean>;
 }
 
 const userSchema = new Schema(
@@ -54,6 +55,10 @@ userSchema.pre("save", async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-const User = model("user", userSchema);
+userSchema.methods.matchPassword = async function (password: string) {
+  return await bcrypt.compare(password, this.password);
+};
+
+const User = model<IUser>("user", userSchema);
 
 export default User;
