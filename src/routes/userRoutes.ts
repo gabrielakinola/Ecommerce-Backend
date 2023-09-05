@@ -5,6 +5,9 @@ import {
   registerAdmin,
   loginUser,
   protectedRoute,
+  forgotPasswordHandler,
+  verifyResetPasswordEmail,
+  resetPassword,
 } from "../controllers/userController";
 import { ensureIsAuthenicated } from "../middlewares/authentication";
 
@@ -19,5 +22,11 @@ router.get("/verify/:token", verifyEmail);
 router.post("/login", loginUser);
 
 router.get("/protected", ensureIsAuthenicated, protectedRoute);
+
+router.post("/forgot-password", forgotPasswordHandler);
+
+router.get("/reset-password", verifyResetPasswordEmail);
+
+router.post("/reset-password", resetPassword);
 
 export default router;

@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { asyncErrorHandler } from "./errorController";
 import User from "../models/userModel";
 import { CustomEndpointError } from "../classes/errorClasses";
-import { sendTestEmail } from "./utils/nodemailer";
+import { sendResetPasswordEMail, sendTestEmail } from "./utils/nodemailer";
 import { generateAuthToken } from "./utils/token";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 const registerUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -13,7 +14,7 @@ const registerUser = asyncErrorHandler(
 
     if (userExists && !userExists.isVerified) {
       const userId = userExists._id.toString();
-      const testUrl = await sendTestEmail(res, userId, next);
+      const testUrl = await sendTestEmail(userId, email, next);
       res.status(200).json({
         message: "User already exist but is unverified",
         verificationUrl: testUrl,
@@ -27,7 +28,7 @@ const registerUser = asyncErrorHandler(
 
     if (user) {
       generateAuthToken(res, userId);
-      const testUrl = await sendTestEmail(res, userId, next);
+      const testUrl = await sendTestEmail(userId, email, next);
       res.status(200).json({
         message: "Please check email for verification",
         verificationUrl: testUrl,
@@ -43,7 +44,7 @@ const registerAdmin = asyncErrorHandler(
 
     if (userExists && !userExists.isVerified) {
       const userId = userExists._id.toString();
-      const testUrl = await sendTestEmail(res, userId, next);
+      const testUrl = await sendTestEmail(userId, email, next);
       res.status(200).json({
         message: "User already exist but is unverified",
         verificationUrl: testUrl,
@@ -58,7 +59,7 @@ const registerAdmin = asyncErrorHandler(
 
     if (user) {
       generateAuthToken(res, userId);
-      const testUrl = await sendTestEmail(res, userId, next);
+      const testUrl = await sendTestEmail(userId, email, next);
       res.status(200).json({
         message: "Please check email for verification",
         verificationUrl: testUrl,
@@ -109,4 +110,75 @@ const protectedRoute = asyncErrorHandler(
   }
 );
 
-export { registerUser, registerAdmin, verifyEmail, loginUser, protectedRoute };
+const forgotPasswordHandler = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (user) {
+      const passwordResetUrl = await sendResetPasswordEMail(
+        user._id,
+        email,
+        next
+      );
+      res.status(200).json({ passwordReset: passwordResetUrl });
+    } else {
+      throw new CustomEndpointError("Invalid User", 400);
+    }
+  }
+);
+
+const verifyResetPasswordEmail = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.query.token as string;
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY2
+    ) as JwtPayload;
+
+    const user = await User.findById(decoded.userId);
+
+    if (user) {
+      res.status(200).json({ message: "Email verified" });
+    } else {
+      throw new CustomEndpointError("Invalid or expired token", 400);
+    }
+  }
+);
+
+const resetPassword = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { token, newPassword } = req.body;
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY2
+    ) as JwtPayload;
+
+    const user = await User.findById(decoded.userId);
+
+    if (user && (await user.matchPassword(newPassword))) {
+      throw new CustomEndpointError(
+        "New Password cannot be the same the previous one",
+        400
+      );
+    } else if (user && !(await user.matchPassword(newPassword))) {
+      user.password = newPassword;
+      await user.save();
+      res.status(200).json({ message: "Password Reset Succesful" });
+    } else {
+      throw new CustomEndpointError("Invalid or epired token", 404);
+    }
+  }
+);
+
+export {
+  registerUser,
+  registerAdmin,
+  verifyEmail,
+  loginUser,
+  protectedRoute,
+  forgotPasswordHandler,
+  verifyResetPasswordEmail,
+  resetPassword,
+};
