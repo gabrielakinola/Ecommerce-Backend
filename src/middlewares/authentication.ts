@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import passport from "passport";
+import { IUser } from "../models/userModel";
 
 import {
   Strategy as JwtStrategy,
@@ -8,6 +9,7 @@ import {
 } from "passport-jwt";
 import User from "../models/userModel";
 import { JwtPayload } from "jsonwebtoken";
+import { CustomEndpointError } from "../classes/errorClasses";
 
 const opts: StrategyOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -39,4 +41,13 @@ export const ensureIsAuthenicated = (
   passport.authenticate("jwt", {
     session: false,
   })(req, res, next);
+};
+
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user as IUser;
+  if (user.isAdmin) {
+    next();
+  } else {
+    throw new CustomEndpointError("Not authorized to use this resource", 400);
+  }
 };

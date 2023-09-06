@@ -110,6 +110,30 @@ const protectedRoute = asyncErrorHandler(
   }
 );
 
+const getUser = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select("-password");
+    if (user) {
+      res.status(200).json({ message: "Sucess", user });
+    } else {
+      throw new CustomEndpointError("User not found", 404);
+    }
+  }
+);
+
+const getUsers = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const users = await User.find({}, "-password");
+    if (users) {
+      res.status(200).json({ message: "Sucess", users });
+    } else {
+      throw new CustomEndpointError("User not found", 404);
+    }
+  }
+);
+
 const forgotPasswordHandler = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email } = req.body;
@@ -181,4 +205,6 @@ export {
   forgotPasswordHandler,
   verifyResetPasswordEmail,
   resetPassword,
+  getUser,
+  getUsers,
 };

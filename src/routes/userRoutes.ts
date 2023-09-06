@@ -8,8 +8,10 @@ import {
   forgotPasswordHandler,
   verifyResetPasswordEmail,
   resetPassword,
+  getUser,
+  getUsers,
 } from "../controllers/userController";
-import { ensureIsAuthenicated } from "../middlewares/authentication";
+import { ensureIsAuthenicated, isAdmin } from "../middlewares/authentication";
 
 const router = Router();
 
@@ -22,6 +24,10 @@ router.get("/verify/:token", verifyEmail);
 router.post("/login", loginUser);
 
 router.get("/protected", ensureIsAuthenicated, protectedRoute);
+
+router.get("/get-user/:userId", ensureIsAuthenicated, isAdmin, getUser);
+
+router.get("/get-users", ensureIsAuthenicated, isAdmin, getUsers);
 
 router.post("/forgot-password", forgotPasswordHandler);
 
