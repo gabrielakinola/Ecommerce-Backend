@@ -8,6 +8,7 @@ import {
   notFoundHandler,
 } from "./controllers/errorController";
 import userRoutes from "./routes/userRoutes";
+import productRoutes from "./routes/productRoutes";
 import connectDB from "./config/db";
 import passport from "passport";
 
@@ -23,6 +24,8 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/products", productRoutes);
+
 app.all("*", notFoundHandler);
 app.use(globalErrorHandler);
 
