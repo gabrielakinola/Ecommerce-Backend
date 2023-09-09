@@ -58,4 +58,50 @@ const getProducts = asyncErrorHandler(
   }
 );
 
-export { addProduct, getProducts };
+const updateProduct = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const { price, quantity } = req.body;
+    const user = req.user as IUser;
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      throw new CustomEndpointError("Not Found, invalid id", 404);
+    } else if (product.sellerId.toString() === user._id.toString()) {
+      product.price = price;
+      product.quantity = quantity;
+      const updatedProduct = await product.save();
+
+      res.status(200).json({ message: "Succesful", updatedProduct });
+    } else {
+      throw new CustomEndpointError(
+        "Not authourized to update this resource",
+        400
+      );
+    }
+  }
+);
+
+const deleteProduct = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const user = req.user as IUser;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      throw new CustomEndpointError("Not Found, invalid id", 404);
+    } else if (product.sellerId.toString() === user._id.toString()) {
+      const deletedProduct = await Product.findByIdAndDelete(id);
+
+      res.status(200).json({ message: "Succesful", deletedProduct });
+    } else {
+      throw new CustomEndpointError(
+        "Not authourized to update this resource",
+        400
+      );
+    }
+  }
+);
+
+export { addProduct, getProducts, updateProduct, deleteProduct };
