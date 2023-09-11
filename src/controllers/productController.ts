@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncErrorHandler } from "./errorController";
-import { Iproduct, Product } from "../models/productModel";
-import { IUser } from "../models/userModel";
+import { IProduct, Product } from "../models/productModel";
+import User, { IUser } from "../models/userModel";
 import { CustomEndpointError } from "../classes/errorClasses";
 
 const addProduct = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const imagePath = req.file?.path;
+    const image = req.file?.path;
     const user = req.user as IUser;
     const sellerId = user._id;
+    const business = user.business;
 
     const { name, description, quantity, price } = req.body;
 
@@ -18,7 +19,8 @@ const addProduct = asyncErrorHandler(
       quantity,
       price,
       sellerId,
-      imagePath,
+      business,
+      image,
     });
 
     if (product) {
@@ -29,25 +31,47 @@ const addProduct = asyncErrorHandler(
 
 const getProducts = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { name } = req.query;
+    const { product, business } = req.query;
 
-    if (name) {
-      const products: Iproduct[] = await Product.find({
-        name,
+    if (product) {
+      const products: IProduct[] = await Product.find({
+        name: product,
       });
+      console.log(products);
 
-      const productNotStrict: Iproduct[] = await Product.find({
-        name: { $regex: name, $options: "i" },
+      const productNotStrict: IProduct[] = await Product.find({
+        name: { $regex: product, $options: "i" },
       });
       if (products.length === 0 && productNotStrict.length === 0) {
         throw new CustomEndpointError("No result matches your query", 404);
       } else if (products.length > 0) {
         res.status(200).json({ products });
-      } else if (productNotStrict.length > 0) {
+      } else {
         res.status(200).json({ products: productNotStrict });
       }
+      return;
+    }
+    if (business) {
+      const exactProducts: IProduct[] = await Product.find({ business });
+      const regexProducts: IProduct[] = await Product.find({
+        business: { $regex: business, $options: "i" },
+      });
+
+      console.log(regexProducts);
+
+      if (exactProducts.length === 0 && regexProducts.length === 0) {
+        throw new CustomEndpointError(
+          "Not found, no businesses matches your query",
+          404
+        );
+      } else if (exactProducts.length > 0) {
+        res.status(200).json({ products: exactProducts });
+      } else {
+        res.status(200).json({ products: regexProducts });
+      }
+      return;
     } else {
-      const products: Iproduct[] = await Product.find();
+      const products: IProduct[] = await Product.find();
 
       if (products.length > 0) {
         res.status(200).json({ products });

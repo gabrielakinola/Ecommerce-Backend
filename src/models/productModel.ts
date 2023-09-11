@@ -1,12 +1,13 @@
 import mongoose, { Schema, model, Document, Types } from "mongoose";
 
-export interface Iproduct extends Document {
+export interface IProduct extends Document {
   name: string;
   description: string;
   quantity: number;
   price: number;
   sellerId: Types.ObjectId;
-  imagePath: string;
+  business: string;
+  image: string;
 }
 
 const productSchema = new Schema({
@@ -33,7 +34,12 @@ const productSchema = new Schema({
     ref: "User",
     required: true,
   },
-  imagePath: {
+  business: {
+    type: String,
+    ref: "User",
+    required: true,
+  },
+  image: {
     type: String,
     required: true,
   },

@@ -39,7 +39,13 @@ const registerUser = asyncErrorHandler(
 
 const registerAdmin = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, password } = req.body;
+    const { name, email, business, password } = req.body;
+    if (!business) {
+      throw new CustomEndpointError(
+        "AdminERR, business is a required field",
+        400
+      );
+    }
     const userExists = await User.findOne({ email });
 
     if (userExists && !userExists.isVerified) {
@@ -53,7 +59,14 @@ const registerAdmin = asyncErrorHandler(
     } else if (userExists && userExists.isVerified) {
       throw new CustomEndpointError("User already exists", 400);
     }
-    const user = await User.create({ name, email, password, isAdmin: true });
+
+    const user = await User.create({
+      name,
+      email,
+      business,
+      password,
+      isAdmin: true,
+    });
 
     const userId = user._id.toString();
 
