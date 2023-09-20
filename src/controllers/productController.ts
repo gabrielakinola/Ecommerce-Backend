@@ -9,7 +9,7 @@ const addProduct = asyncErrorHandler(
     const image = req.file?.path;
     const user = req.user as IUser;
     const sellerId = user._id;
-    const business = user.business;
+    const business = user.sellerProfile?.business;
 
     const { name, description, quantity, price } = req.body;
 

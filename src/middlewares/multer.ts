@@ -2,7 +2,18 @@ import multer from "multer";
 
 const storage = multer.diskStorage({
   destination: (req, file, callback) => {
-    callback(null, "uploads/");
+    const fieldname = file.fieldname;
+    let folder;
+    if (fieldname === "idCard") {
+      folder = "uploads/IDs";
+    } else if (fieldname === "businessImage") {
+      folder = "uploads/businessImages";
+    } else if (fieldname === "products") {
+      folder = "uploads/products";
+    } else {
+      folder = "uploads/others";
+    }
+    callback(null, folder);
   },
   filename: (req, file, callback) => {
     callback(null, Date.now() + "-" + file.originalname);
@@ -11,4 +22,4 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
-}).single("image");
+});

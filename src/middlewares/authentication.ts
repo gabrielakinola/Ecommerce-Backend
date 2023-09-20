@@ -43,9 +43,9 @@ export const ensureIsAuthenicated = (
   })(req, res, next);
 };
 
-export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+export const isSeller = (req: Request, res: Response, next: NextFunction) => {
   const user = req.user as IUser;
-  if (user.isAdmin) {
+  if (user.isSeller) {
     next();
   } else {
     throw new CustomEndpointError("Not authorized to use this resource", 400);

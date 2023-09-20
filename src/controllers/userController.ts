@@ -1,73 +1,43 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncErrorHandler } from "./errorController";
-import User from "../models/userModel";
+import User, { ISellerProfile, IUser } from "../models/userModel";
 import { CustomEndpointError } from "../classes/errorClasses";
 import { sendResetPasswordEMail, sendTestEmail } from "./utils/nodemailer";
 import { generateAuthToken } from "./utils/token";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { Types } from "mongoose";
 import bcrypt from "bcryptjs";
+
+const ObjectId = Types.ObjectId;
 
 const registerUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, password } = req.body;
-    const userExists = await User.findOne({ email });
+    const { firstName, lastName, username, email, password } = req.body;
 
+    const userNameExist = await User.findOne({ username });
+    if (userNameExist) {
+      throw new CustomEndpointError("username is in use", 500);
+    }
+    const userExists = await User.findOne({ email });
     if (userExists && !userExists.isVerified) {
       const userId = userExists._id.toString();
       const testUrl = await sendTestEmail(userId, email, next);
       res.status(200).json({
-        message: "User already exist but is unverified",
+        message: "UserEmail already has an account but is unverified",
         verificationUrl: testUrl,
       });
       return;
     } else if (userExists && userExists.isVerified) {
-      throw new CustomEndpointError("User already exists", 400);
-    }
-    const user = await User.create({ name, email, password });
-    const userId = user._id.toString();
-
-    if (user) {
-      generateAuthToken(res, userId);
-      const testUrl = await sendTestEmail(userId, email, next);
-      res.status(200).json({
-        message: "Please check email for verification",
-        verificationUrl: testUrl,
-      });
-    }
-  }
-);
-
-const registerAdmin = asyncErrorHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, business, password } = req.body;
-    if (!business) {
-      throw new CustomEndpointError(
-        "AdminERR, business is a required field",
-        400
-      );
-    }
-    const userExists = await User.findOne({ email });
-
-    if (userExists && !userExists.isVerified) {
-      const userId = userExists._id.toString();
-      const testUrl = await sendTestEmail(userId, email, next);
-      res.status(200).json({
-        message: "User already exist but is unverified",
-        verificationUrl: testUrl,
-      });
-      return;
-    } else if (userExists && userExists.isVerified) {
-      throw new CustomEndpointError("User already exists", 400);
+      throw new CustomEndpointError("User has an account, please log in", 400);
     }
 
     const user = await User.create({
-      name,
       email,
-      business,
       password,
-      isAdmin: true,
+      lastName,
+      firstName,
+      username,
     });
-
     const userId = user._id.toString();
 
     if (user) {
@@ -103,6 +73,47 @@ const verifyEmail = asyncErrorHandler(
   }
 );
 
+const createSeller = asyncErrorHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { business, address, phone } = req.body;
+    const user = req.user as IUser;
+    const idImageUrl = (req as any).files["idCard"][0].path;
+    const businessImageUrl = (req as any).files["businessImage"][0].path;
+
+    const phoneNumber = phone.toString();
+
+    if (user.isSeller) {
+      throw new CustomEndpointError("User is already a seller", 400);
+    }
+
+    const updateObject = {
+      isSeller: true,
+      sellerProfile: {
+        business,
+        address,
+        phone: phoneNumber,
+        idImageUrl,
+        businessImageUrl,
+      },
+    };
+
+    await User.findByIdAndUpdate(user._id, { $set: updateObject });
+
+    const updatedUser = await User.findById(user._id).select("-password");
+
+    if (updatedUser?.sellerProfile) {
+      res
+        .status(200)
+        .json({ message: "Seller profile created succesfully", updatedUser });
+    } else {
+      throw new CustomEndpointError(
+        "Failed to create user seller profile",
+        400
+      );
+    }
+  }
+);
+
 const loginUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body;
@@ -114,12 +125,6 @@ const loginUser = asyncErrorHandler(
     } else {
       throw new CustomEndpointError("Invalid email or password", 400);
     }
-  }
-);
-
-const protectedRoute = asyncErrorHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    res.status(200).json({ user: req.user });
   }
 );
 
@@ -211,10 +216,9 @@ const resetPassword = asyncErrorHandler(
 
 export {
   registerUser,
-  registerAdmin,
+  createSeller,
   verifyEmail,
   loginUser,
-  protectedRoute,
   forgotPasswordHandler,
   verifyResetPasswordEmail,
   resetPassword,
